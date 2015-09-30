@@ -18,10 +18,10 @@ public class AndroidMuxer extends Muxer {
     private MediaMuxer mMuxer;
     private boolean mStarted;
 
-    private AndroidMuxer(String outputFile, FORMAT format){
+    private AndroidMuxer(String outputFile, FORMAT format) {
         super(outputFile, format);
         try {
-            switch(format){
+            switch (format) {
                 case MPEG4:
                     mMuxer = new MediaMuxer(outputFile, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
                     break;
@@ -41,12 +41,12 @@ public class AndroidMuxer extends Muxer {
     @Override
     public int addTrack(MediaFormat trackFormat) {
         super.addTrack(trackFormat);
-        if(mStarted)
+        if (mStarted)
             throw new RuntimeException("format changed twice");
         int track = mMuxer.addTrack(trackFormat);
 
-        if(allTracksAdded()){
-           start();
+        if (allTracksAdded()) {
+            start();
         }
         return track;
     }
@@ -73,34 +73,26 @@ public class AndroidMuxer extends Muxer {
     }
 
     @Override
-    public void writeSampleData(MediaCodec encoder, int trackIndex, int bufferIndex, ByteBuffer encodedData, MediaCodec.BufferInfo bufferInfo) {
+    public void writeSampleData(MediaCodec encoder, int trackIndex, int bufferIndex,
+                                ByteBuffer encodedData, MediaCodec.BufferInfo bufferInfo) {
         super.writeSampleData(encoder, trackIndex, bufferIndex, encodedData, bufferInfo);
         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             // MediaMuxer gets the codec config info via the addTrack command
             if (VERBOSE) Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
             encoder.releaseOutputBuffer(bufferIndex, false);
-            return;
-        }
-
-        if(bufferInfo.size == 0){
-            if(VERBOSE) Log.d(TAG, "ignoring zero size buffer");
+        } else if (bufferInfo.size == 0) {
+            if (VERBOSE) Log.d(TAG, "ignoring zero size buffer");
             encoder.releaseOutputBuffer(bufferIndex, false);
-            return;
-        }
-
-        if (!mStarted) {
+        } else if (!mStarted) {
             Log.e(TAG, "writeSampleData called before muxer started. Ignoring packet. Track index: " + trackIndex + " tracks added: " + mNumTracks);
             encoder.releaseOutputBuffer(bufferIndex, false);
-            return;
+        } else {
+            bufferInfo.presentationTimeUs = getNextRelativePts(bufferInfo.presentationTimeUs, trackIndex);
+            mMuxer.writeSampleData(trackIndex, encodedData, bufferInfo);
+            encoder.releaseOutputBuffer(bufferIndex, false);
         }
 
-        bufferInfo.presentationTimeUs = getNextRelativePts(bufferInfo.presentationTimeUs, trackIndex);
-
-        mMuxer.writeSampleData(trackIndex, encodedData, bufferInfo);
-
-        encoder.releaseOutputBuffer(bufferIndex, false);
-
-        if(allTracksFinished()){
+        if (allTracksFinished()) {
             stop();
         }
     }
