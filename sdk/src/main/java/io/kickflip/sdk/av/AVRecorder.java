@@ -109,14 +109,11 @@ public class AVRecorder {
      */
     public void release() {
         mCamEncoder.release();
-        // MicrophoneEncoder releases all it's resources when stopRecording is called
-        // because it doesn't have any meaningful state
-        // between recordings. It might someday if we decide to present
-        // persistent audio volume meters etc.
-        // Until then, we don't need to write MicrophoneEncoder.release()
+        mMicEncoder.release();
     }
 
     public void onHostActivityPaused(){
+        mMicEncoder.release(); //Ensure the audio record is released
         mCamEncoder.onHostActivityPaused();
     }
 

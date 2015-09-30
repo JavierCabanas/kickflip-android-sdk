@@ -86,6 +86,11 @@ public class MicrophoneEncoder implements Runnable {
         init(config);
     }
 
+    public void release(){
+        mAudioRecord.release();
+        mEncoderCore.release();
+    }
+
     public boolean isRecording() {
         return mRecordingRequested;
     }
